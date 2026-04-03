@@ -431,6 +431,9 @@ requestAnimationFrame(resizeLayout);
 
 function startLoopingJump() {
     if (bunny.looping) return;
+    if (bunny.score === eggs.length) {
+        bunny.celebrationJumpStarted = true;
+    }
     triggerFlowerBurst(bunny.x, bunny.y);
     bunny.looping = true;
     bunny.loopProgress = 0;
@@ -595,6 +598,10 @@ const bunny = {
     blinking: false,
     looping: false,
     loopProgress: 0,
+    celebrationJumpStarted: false,
+    celebrationJumpDone: false,
+    celebrationPromptAlpha: 0,
+    winScreenAlpha: 0,
 };
 
 const flowerBursts = [];
@@ -912,21 +919,45 @@ function drawBunny(x, y, facing, verticalFacing, tailVisible, hopHeight, blink, 
     ctx.restore();
 }
 
-function drawWinScreen() {
+function drawWinScreen(alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     ctx.fillRect(0, 0, W, H);
 
-    ctx.save();
     ctx.textAlign = 'center';
     ctx.fillStyle = '#FFD700';
     ctx.font = 'bold 52px Segoe UI, Arial';
-    ctx.fillText('Frohe Ostern!', W / 2, H / 2 - 30);
-    ctx.fillStyle = 'white';
-    ctx.font = '26px Segoe UI, Arial';
-    ctx.fillText('Alle Ostereier gefunden!', W / 2, H / 2 + 20);
+    ctx.fillText('Frohe Ostern!', W / 2, H / 2 - 4);
     ctx.font = '18px Segoe UI, Arial';
     ctx.fillStyle = 'rgba(255,255,255,0.75)';
-    ctx.fillText('Seite aktualisieren für ein neues Spiel', W / 2, H / 2 + 58);
+    ctx.fillText('Seite aktualisieren für ein neues Spiel', W / 2, H / 2 + 34);
+    ctx.restore();
+}
+
+function drawCelebrationPrompt(alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = '22px Segoe UI, Arial';
+    const text = 'Alle Ostereier gefunden! Mach einen Freudensprung!';
+    const paddingX = 28;
+    const boxWidth = Math.min(W - 32, ctx.measureText(text).width + paddingX * 2);
+    const boxHeight = 62;
+    const x = (W - boxWidth) / 2;
+    const y = H - 106;
+
+    ctx.fillStyle = 'rgba(255, 245, 214, 0.92)';
+    ctx.beginPath();
+    ctx.roundRect(x, y, boxWidth, boxHeight, 18);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(128, 97, 46, 0.28)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#6F4B1F';
+    ctx.fillText(text, W / 2, y + 38);
     ctx.restore();
 }
 
@@ -1216,6 +1247,9 @@ function loop(timestamp) {
             bunny.loopProgress = 0;
             bunny.hopHeight = 0;
             loopingWasActive = false;
+            if (bunny.celebrationJumpStarted) {
+                bunny.celebrationJumpDone = true;
+            }
             // Landungs-Explosion
             spawnExplosion(bunny.x, bunny.y + 28,
                 ['#FFD700','#FF69B4','#FFFFFF','#C084FC','#60D9FA'], 60, 10);
@@ -1232,6 +1266,17 @@ function loop(timestamp) {
             bunny.blinkTimer = 0;
         }
     }
+
+    const shouldShowCelebrationPrompt = bunny.score === eggs.length && !bunny.celebrationJumpStarted;
+    const celebrationPromptTarget = shouldShowCelebrationPrompt ? 1 : 0;
+    bunny.celebrationPromptAlpha += (celebrationPromptTarget - bunny.celebrationPromptAlpha) * 0.12 * dt;
+    if (bunny.celebrationPromptAlpha < 0.01) bunny.celebrationPromptAlpha = 0;
+    if (bunny.celebrationPromptAlpha > 0.99) bunny.celebrationPromptAlpha = 1;
+
+    const winScreenTarget = bunny.celebrationJumpDone ? 1 : 0;
+    bunny.winScreenAlpha += (winScreenTarget - bunny.winScreenAlpha) * 0.08 * dt;
+    if (bunny.winScreenAlpha < 0.01) bunny.winScreenAlpha = 0;
+    if (bunny.winScreenAlpha > 0.99) bunny.winScreenAlpha = 1;
 
     // Eier einsammeln
     for (const egg of eggs) {
@@ -1291,7 +1336,7 @@ function loop(timestamp) {
 
     ctx.restore(); // Shake-Transform beenden
 
-    if (bunny.score === eggs.length) {
+    if (bunny.score === eggs.length && bunny.celebrationJumpDone) {
         // Feuerwerk starten (einmalig)
         if (!fw.active && fw.timer === 0) {
             fw.active = true;
@@ -1312,7 +1357,9 @@ function loop(timestamp) {
             }
             if (fw.timer <= 0) fw.active = false;
         }
-        drawWinScreen();
+        drawWinScreen(bunny.winScreenAlpha);
+    } else if (bunny.celebrationPromptAlpha > 0) {
+        drawCelebrationPrompt(bunny.celebrationPromptAlpha);
     }
 
     requestAnimationFrame(loop);
