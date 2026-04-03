@@ -88,8 +88,10 @@ for (let i = 0; i < 90; i++) {
         size: randRange(6, 13),
         petals: randInt(4, 7),
         angle: rand() * Math.PI * 2,
-        wobble: rand() * Math.PI * 2,
-        wobbleSpeed: 0.01 + rand() * 0.015,
+        wobblePhase: rand() * Math.PI * 2,
+        wobbleSpeed: 0.03 + rand() * 0.02,
+        speedBoost: 0,
+        amplitudeBoost: 0,
     });
 }
 
@@ -143,10 +145,25 @@ const bunny = {
     loopProgress: 0,
 };
 
+const flowerBursts = [];
+
+function triggerFlowerBurst(x, y, options = {}) {
+    flowerBursts.push({
+        x,
+        y,
+        life: 1,
+        radius: options.radius ?? 180,
+        speedStrength: options.speedStrength ?? 6.5,
+        amplitudeStrength: options.amplitudeStrength ?? 0.45,
+        decay: options.decay ?? 0.018,
+    });
+}
+
 const keys = {};
 document.addEventListener('keydown', e => {
     keys[e.key] = true;
     if (e.key === ' ' && !e.repeat && !bunny.looping) {
+        triggerFlowerBurst(bunny.x, bunny.y);
         bunny.looping = true;
         bunny.loopProgress = 0;
     }
@@ -201,8 +218,8 @@ function drawCloud(c) {
     ctx.restore();
 }
 
-function drawFlower(f, t) {
-    const wobble = Math.sin(t * f.wobbleSpeed + f.wobble) * 0.12;
+function drawFlower(f) {
+    const wobble = Math.sin(f.wobblePhase) * (0.12 + f.amplitudeBoost);
     ctx.save();
     ctx.translate(f.x, f.y);
 
@@ -493,6 +510,12 @@ function spawnExplosion(x, y, colors, count, power) {
     const m = strengthMultipliers[explosionSettings.strength];
     count = Math.max(1, Math.round(count * m.particles));
     power = power * m.power;
+    const flowerBurstProfiles = {
+        1: { radius: 180, speedStrength: 7.5, amplitudeStrength: 0.55, decay: 0.015 },
+        2: { radius: 240, speedStrength: 12, amplitudeStrength: 0.85, decay: 0.012 },
+        3: { radius: 320, speedStrength: 22, amplitudeStrength: 1.5, decay: 0.009 },
+    };
+    triggerFlowerBurst(x, y, flowerBurstProfiles[explosionSettings.strength]);
     for (let i = 0; i < count; i++) {
         const angle = rand() * Math.PI * 2;
         const speed = randRange(2.5, power);
@@ -656,6 +679,36 @@ function loop(timestamp) {
     }
     bunny.isMoving = moving;
 
+    const flowerInfluenceRadius = 100;
+    for (let i = flowerBursts.length - 1; i >= 0; i--) {
+        flowerBursts[i].life -= flowerBursts[i].decay * dt;
+        if (flowerBursts[i].life <= 0) {
+            flowerBursts.splice(i, 1);
+        }
+    }
+    for (const f of flowers) {
+        let targetBoost = 0;
+        let targetAmplitude = 0;
+        if (moving) {
+            const dist = Math.hypot(bunny.x - f.x, bunny.y - f.y);
+            const proximity = Math.max(0, 1 - dist / flowerInfluenceRadius);
+            targetBoost = proximity * 5;
+            targetAmplitude = proximity * 0.36;
+        }
+        for (const burst of flowerBursts) {
+            const dist = Math.hypot(burst.x - f.x, burst.y - f.y);
+            const proximity = Math.max(0, 1 - dist / burst.radius);
+            const burstInfluence = proximity * burst.life;
+            targetBoost = Math.max(targetBoost, burstInfluence * burst.speedStrength);
+            targetAmplitude = Math.max(targetAmplitude, burstInfluence * burst.amplitudeStrength);
+        }
+        const speedResponse = targetBoost > f.speedBoost ? 0.2 : 0.05;
+        const amplitudeResponse = targetAmplitude > f.amplitudeBoost ? 0.18 : 0.045;
+        f.speedBoost += (targetBoost - f.speedBoost) * speedResponse * dt;
+        f.amplitudeBoost += (targetAmplitude - f.amplitudeBoost) * amplitudeResponse * dt;
+        f.wobblePhase += f.wobbleSpeed * (1 + f.speedBoost) * dt;
+    }
+
     // Looping-Sprung (Leertaste)
     let loopAngle = 0;
     if (bunny.looping) {
@@ -724,7 +777,7 @@ function loop(timestamp) {
 
     // Blumen hinter dem Hasen
     for (const f of flowers) {
-        if (f.y < bunny.y - 15) drawFlower(f, t);
+        if (f.y < bunny.y - 15) drawFlower(f);
     }
 
     // Eier
@@ -738,7 +791,7 @@ function loop(timestamp) {
 
     // Blumen vor dem Hasen
     for (const f of flowers) {
-        if (f.y >= bunny.y - 15) drawFlower(f, t);
+        if (f.y >= bunny.y - 15) drawFlower(f);
     }
 
     ctx.restore(); // Shake-Transform beenden
