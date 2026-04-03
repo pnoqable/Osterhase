@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Osterhase auf der Blumenwiese</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #5BA3D9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+        }
+        h1 {
+            color: white;
+            margin-bottom: 12px;
+            font-size: 22px;
+            text-shadow: 2px 2px 6px rgba(0,0,0,0.4);
+            letter-spacing: 1px;
+        }
+        canvas {
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            display: block;
+        }
+        p {
+            color: rgba(255,255,255,0.85);
+            margin-top: 10px;
+            font-size: 13px;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+    <h1>Osterhase auf der Blumenwiese</h1>
+    <canvas id="canvas" width="820" height="520"></canvas>
+    <p>Steuerung: Pfeiltasten oder WASD &nbsp;|&nbsp; Leertaste: Looping-Sprung &nbsp;|&nbsp; Sammle alle Ostereier!</p>
+    <div id="settings" style="display:flex;align-items:center;gap:16px;margin-top:10px;background:rgba(0,0,0,0.3);padding:8px 18px;border-radius:12px;">
+        <label style="color:white;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="explosionToggle" checked style="width:16px;height:16px;cursor:pointer;">
+            Explosionen
+        </label>
+        <span style="color:rgba(255,255,255,0.5);font-size:13px;">Stärke:</span>
+        <div id="strengthButtons" style="display:flex;gap:6px;">
+            <button onclick="setStrength(1)" id="btn1" style="padding:4px 12px;border-radius:8px;border:2px solid white;background:#4a9d30;color:white;font-size:12px;cursor:pointer;font-family:inherit;">Schwach</button>
+            <button onclick="setStrength(2)" id="btn2" style="padding:4px 12px;border-radius:8px;border:2px solid transparent;background:#c07800;color:white;font-size:12px;cursor:pointer;font-family:inherit;">Mittel</button>
+            <button onclick="setStrength(3)" id="btn3" style="padding:4px 12px;border-radius:8px;border:2px solid transparent;background:#9b2020;color:white;font-size:12px;cursor:pointer;font-family:inherit;">Stark</button>
+        </div>
+    </div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// --- Zufallsgenerator mit Seed für reproduzierbare Szene ---
+let seed = 42;
+function rand() {
+    seed = (seed * 1664525 + 1013904223) & 0xFFFFFFFF;
+    return (seed >>> 0) / 0xFFFFFFFF;
+}
+function randRange(a, b) { return a + rand() * (b - a); }
+function randInt(a, b) { return Math.floor(randRange(a, b + 1)); }
+
+// --- Blumen ---
+const flowerPalette = [
+    { petal: '#FF6BA8', center: '#FFD700' },
+    { petal: '#FFD700', center: '#FF8C00' },
+    { petal: '#C084FC', center: '#FFD700' },
+    { petal: '#F87171', center: '#FDE68A' },
+    { petal: '#FD9A4A', center: '#FF4444' },
+    { petal: '#FFFFFF', center: '#FFD700' },
+    { petal: '#60D9FA', center: '#FFFFFF' },
+];
+
+const flowers = [];
+for (let i = 0; i < 90; i++) {
+    const col = flowerPalette[randInt(0, flowerPalette.length - 1)];
+    flowers.push({
+        x: randRange(10, W - 10),
+        y: randRange(H * 0.28, H - 10),
+        petalColor: col.petal,
+        centerColor: col.center,
+        size: randRange(6, 13),
+        petals: randInt(4, 7),
+        angle: rand() * Math.PI * 2,
+        wobble: rand() * Math.PI * 2,
+        wobbleSpeed: 0.01 + rand() * 0.015,
+    });
+}
+
+// --- Wolken ---
+const clouds = [
+    { x: 80,  y: 55, r: 35, parts: [{dx:-25,dy:5,r:22},{dx:0,dy:0,r:30},{dx:28,dy:8,r:20},{dx:50,dy:5,r:18}] },
+    { x: 320, y: 40, r: 28, parts: [{dx:-20,dy:6,r:18},{dx:0,dy:0,r:26},{dx:22,dy:7,r:16}] },
+    { x: 600, y: 70, r: 32, parts: [{dx:-30,dy:6,r:20},{dx:0,dy:0,r:28},{dx:30,dy:4,r:22},{dx:55,dy:8,r:18}] },
+];
+
+// --- Ostereier ---
+const eggColors = [
+    { fill: '#FF6BA8', stripe: '#FF1493' },
+    { fill: '#A78BFA', stripe: '#7C3AED' },
+    { fill: '#34D399', stripe: '#059669' },
+    { fill: '#60A5FA', stripe: '#2563EB' },
+    { fill: '#FCD34D', stripe: '#F59E0B' },
+    { fill: '#F87171', stripe: '#DC2626' },
+    { fill: '#FB923C', stripe: '#EA580C' },
+    { fill: '#C084FC', stripe: '#9333EA' },
+];
+const eggs = [];
+const eggPositions = [];
+for (let i = 0; i < 8; i++) {
+    let x, y, safe;
+    do {
+        safe = true;
+        x = randRange(50, W - 50);
+        y = randRange(H * 0.35, H - 40);
+        for (const p of eggPositions) {
+            if (Math.hypot(x - p.x, y - p.y) < 60) { safe = false; break; }
+        }
+    } while (!safe);
+    eggPositions.push({x, y});
+    eggs.push({ x, y, col: eggColors[i], collected: false, collectAnim: 0 });
+}
+
+// --- Hase ---
+const bunny = {
+    x: W / 2, y: H / 2,
+    speed: 3.2,
+    hopPhase: 0,
+    hopHeight: 0,
+    facing: 1,
+    verticalFacing: 1,
+    score: 0,
+    isMoving: false,
+    blinkTimer: 0,
+    blinking: false,
+    looping: false,
+    loopProgress: 0,
+};
+
+const keys = {};
+document.addEventListener('keydown', e => {
+    keys[e.key] = true;
+    if (e.key === ' ' && !e.repeat && !bunny.looping) {
+        bunny.looping = true;
+        bunny.loopProgress = 0;
+    }
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// --- Zeichenfunktionen ---
+
+function drawSky() {
+    const g = ctx.createLinearGradient(0, 0, 0, H * 0.35);
+    g.addColorStop(0, '#87CEEB');
+    g.addColorStop(1, '#C9E9F5');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H * 0.35);
+}
+
+function drawGrass() {
+    const g = ctx.createLinearGradient(0, H * 0.28, 0, H);
+    g.addColorStop(0, '#8CCF52');
+    g.addColorStop(0.4, '#6BBD38');
+    g.addColorStop(1, '#4DA028');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, H * 0.28, W, H * 0.72);
+
+    // Hügel-Silhouette
+    ctx.fillStyle = '#78C940';
+    ctx.beginPath();
+    ctx.moveTo(0, H * 0.36);
+    ctx.bezierCurveTo(W*0.18, H*0.12, W*0.38, H*0.22, W*0.5, H*0.30);
+    ctx.bezierCurveTo(W*0.63, H*0.18, W*0.82, H*0.08, W, H*0.32);
+    ctx.lineTo(W, H * 0.4);
+    ctx.lineTo(0, H * 0.4);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function drawCloud(c) {
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+    for (const p of c.parts) {
+        ctx.beginPath();
+        ctx.arc(p.dx, p.dy, p.r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+function drawFlower(f, t) {
+    const wobble = Math.sin(t * f.wobbleSpeed + f.wobble) * 0.12;
+    ctx.save();
+    ctx.translate(f.x, f.y);
+
+    // Stiel
+    ctx.strokeStyle = '#4CAF50';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, f.size * 0.4);
+    ctx.lineTo(0, f.size * 0.4 + 14);
+    ctx.stroke();
+
+    // Nur die Bluete wackelt, der Stiel bleibt fest.
+    ctx.save();
+    ctx.rotate(wobble);
+
+    // Blütenblätter
+    ctx.fillStyle = f.petalColor;
+    for (let i = 0; i < f.petals; i++) {
+        const a = f.angle + (i / f.petals) * Math.PI * 2;
+        ctx.save();
+        ctx.rotate(a);
+        ctx.beginPath();
+        ctx.ellipse(0, -f.size * 0.75, f.size * 0.38, f.size * 0.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Mitte
+    ctx.fillStyle = f.centerColor;
+    ctx.beginPath();
+    ctx.arc(0, 0, f.size * 0.38, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.beginPath();
+    ctx.arc(0, 0, f.size * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.restore();
+}
+
+function drawEgg(egg) {
+    if (egg.collected && egg.collectAnim >= 1) return;
+    ctx.save();
+    ctx.translate(egg.x, egg.y);
+
+    if (egg.collected) {
+        const s = 1 + egg.collectAnim * 0.8;
+        ctx.scale(s, s);
+        ctx.globalAlpha = 1 - egg.collectAnim;
+    }
+
+    const c = egg.col;
+    // Eiform
+    ctx.fillStyle = c.fill;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 11, 15, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Muster: horizontaler Streifen
+    ctx.save();
+    ctx.clip();
+    ctx.fillStyle = c.stripe;
+    ctx.globalAlpha = (egg.collected ? (1 - egg.collectAnim) : 1) * 0.5;
+    ctx.fillRect(-12, -3, 24, 6);
+    ctx.restore();
+
+    // Punkte
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.globalAlpha = egg.collected ? (1 - egg.collectAnim) : 1;
+    ctx.beginPath(); ctx.arc(-3, -6, 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4,  4, 2, 0, Math.PI*2); ctx.fill();
+
+    ctx.restore();
+}
+
+function drawBunny(x, y, facing, verticalFacing, hopHeight, blink, loopAngle) {
+    ctx.save();
+    ctx.translate(x, y - hopHeight);
+    ctx.scale(facing, 1);
+
+    // Schatten vor der Rotation, bleibt am Boden
+    const shadowScale = Math.max(0, 1 - hopHeight / 90);
+    if (shadowScale > 0) {
+        ctx.save();
+        ctx.translate(0, hopHeight);
+        ctx.fillStyle = `rgba(0,0,0,${0.18 * shadowScale})`;
+        ctx.beginPath();
+        ctx.ellipse(0, 28, 20 * shadowScale, 5 * shadowScale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    if (loopAngle) {
+        ctx.translate(0, -8);
+        ctx.rotate(loopAngle);
+        ctx.translate(0, 8);
+    }
+
+    if (verticalFacing !== 1) {
+        // Schwanz vorne sichtbar, wenn das Haeschen nicht gerade auf den Spieler zu zeigt.
+        ctx.fillStyle = '#EFEFEF';
+        ctx.beginPath();
+        ctx.arc(-19, 8, 8, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Körper
+    ctx.fillStyle = '#F0F0F0';
+    ctx.beginPath();
+    ctx.ellipse(0, 10, 21, 23, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Bauch
+    ctx.fillStyle = '#FFE4E1';
+    ctx.beginPath();
+    ctx.ellipse(0, 14, 12, 15, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ohren (hinten)
+    for (const side of [-1, 1]) {
+        ctx.fillStyle = '#E8E8E8';
+        ctx.beginPath();
+        ctx.ellipse(side * 7, -38, 5.5, 20, side * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#FFB6C1';
+        ctx.beginPath();
+        ctx.ellipse(side * 7, -38, 3, 14, side * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Kopf
+    ctx.fillStyle = '#F0F0F0';
+    ctx.beginPath();
+    ctx.arc(0, -15, 17, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Backen (rosa)
+    ctx.fillStyle = 'rgba(255, 182, 193, 0.45)';
+    ctx.beginPath(); ctx.ellipse(-9, -11, 6, 4, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse( 9, -11, 6, 4, 0, 0, Math.PI*2); ctx.fill();
+
+    // Augen
+    if (!blink) {
+        ctx.fillStyle = '#2D2D2D';
+        ctx.beginPath(); ctx.arc(-6, -18, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc( 6, -18, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.beginPath(); ctx.arc(-4.5, -19.5, 1.2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc( 7.5, -19.5, 1.2, 0, Math.PI * 2); ctx.fill();
+    } else {
+        // Blinzeln: schmale Linie
+        ctx.strokeStyle = '#2D2D2D';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-9, -18); ctx.lineTo(-3, -18); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( 3, -18); ctx.lineTo( 9, -18); ctx.stroke();
+    }
+
+    // Nase
+    ctx.fillStyle = '#FF69B4';
+    ctx.beginPath();
+    ctx.arc(0, -11, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Mund
+    ctx.strokeStyle = '#C06070';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(0, -8);
+    ctx.quadraticCurveTo(-4, -5, -5, -3);
+    ctx.moveTo(0, -8);
+    ctx.quadraticCurveTo( 4, -5,  5, -3);
+    ctx.stroke();
+
+    // Schnurrhaare
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(3, -11); ctx.lineTo(20, -9);
+    ctx.moveTo(3, -11); ctx.lineTo(20, -13);
+    ctx.moveTo(-3, -11); ctx.lineTo(-20, -9);
+    ctx.moveTo(-3, -11); ctx.lineTo(-20, -13);
+    ctx.stroke();
+
+    // Beine / Füße
+    ctx.fillStyle = '#F0F0F0';
+    ctx.beginPath(); ctx.ellipse(-10, 29, 9, 5.5, -0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse( 10, 29, 9, 5.5,  0.3, 0, Math.PI * 2); ctx.fill();
+
+    ctx.restore();
+}
+
+function drawHUD(score, total) {
+    // Hintergrund-Pill
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.roundRect(12, 12, 175, 42, 12);
+    ctx.fill();
+
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 17px Segoe UI, Arial';
+    ctx.fillText(`Eier: ${score} / ${total}`, 48, 39);
+
+    // Kleine Egg-Icons
+    for (let i = 0; i < total; i++) {
+        ctx.fillStyle = eggs[i].collected ? eggColors[i].fill : 'rgba(255,255,255,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(198 + i * 22, 33, 7, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function drawWinScreen() {
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 52px Segoe UI, Arial';
+    ctx.fillText('Frohe Ostern!', W / 2, H / 2 - 30);
+    ctx.fillStyle = 'white';
+    ctx.font = '26px Segoe UI, Arial';
+    ctx.fillText('Alle Ostereier gefunden!', W / 2, H / 2 + 20);
+    ctx.font = '18px Segoe UI, Arial';
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillText('Druecke F5 fuer ein neues Spiel', W / 2, H / 2 + 58);
+    ctx.restore();
+}
+
+// --- Explosions-Einstellungen ---
+const explosionSettings = {
+    enabled: localStorage.getItem('exp_enabled') === 'true',
+    strength: parseInt(localStorage.getItem('exp_strength') || '1', 10),
+};
+
+const strengthMultipliers = {
+    1: { particles: 0.3, power: 0.6, shake: 0.3 },
+    2: { particles: 0.65, power: 1.0, shake: 0.5 },
+    3: { particles: 1.0, power: 1.4, shake: 1 },
+};
+
+// UI initialisieren
+(function() {
+    const toggle = document.getElementById('explosionToggle');
+    toggle.checked = explosionSettings.enabled;
+    document.getElementById('strengthButtons').style.opacity = explosionSettings.enabled ? '1' : '0.4';
+    document.getElementById('strengthButtons').style.pointerEvents = explosionSettings.enabled ? 'auto' : 'none';
+    for (let i = 1; i <= 3; i++) {
+        document.getElementById('btn' + i).style.border = i === explosionSettings.strength ? '2px solid white' : '2px solid transparent';
+    }
+})();
+
+document.getElementById('explosionToggle').addEventListener('change', function() {
+    explosionSettings.enabled = this.checked;
+    localStorage.setItem('exp_enabled', this.checked);
+    document.getElementById('strengthButtons').style.opacity = this.checked ? '1' : '0.4';
+    document.getElementById('strengthButtons').style.pointerEvents = this.checked ? 'auto' : 'none';
+});
+
+function setStrength(level) {
+    explosionSettings.strength = level;
+    localStorage.setItem('exp_strength', level);
+    for (let i = 1; i <= 3; i++) {
+        document.getElementById('btn' + i).style.border = i === level ? '2px solid white' : '2px solid transparent';
+    }
+}
+
+// --- Partikel ---
+const particles = [];
+
+// --- Bildschirm-Shake ---
+const shake = { intensity: 0, decay: 0.85 };
+
+function triggerShake(strength) {
+    if (!explosionSettings.enabled) return;
+    const m = strengthMultipliers[explosionSettings.strength];
+    shake.intensity = Math.max(shake.intensity, strength * m.shake);
+}
+
+function spawnExplosion(x, y, colors, count, power) {
+    if (!explosionSettings.enabled) return;
+    const m = strengthMultipliers[explosionSettings.strength];
+    count = Math.max(1, Math.round(count * m.particles));
+    power = power * m.power;
+    for (let i = 0; i < count; i++) {
+        const angle = rand() * Math.PI * 2;
+        const speed = randRange(2.5, power);
+        particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - randRange(2, 5),
+            life: 1,
+            decay: randRange(0.010, 0.022),
+            color: colors[randInt(0, colors.length - 1)],
+            size: randRange(7, 18),
+            shape: randInt(0, 1),
+            rot: rand() * Math.PI,
+            rotSpeed: randRange(-0.25, 0.25),
+        });
+    }
+}
+
+function spawnLoopingStars(x, y) {
+    if (!explosionSettings.enabled) return;
+    const m = strengthMultipliers[explosionSettings.strength];
+    const colors = ['#FFD700','#FF69B4','#00CFFF','#FFFFFF','#FF8C00','#C084FC'];
+    const count = Math.max(1, Math.round(36 * m.particles));
+    for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        const speed = randRange(5, 12);
+        particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 1,
+            decay: randRange(0.012, 0.025),
+            color: colors[randInt(0, colors.length - 1)],
+            size: randRange(8, 16),
+            shape: 2,
+            rot: rand() * Math.PI,
+            rotSpeed: randRange(-0.3, 0.3),
+        });
+    }
+}
+
+function updateAndDrawParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 0.18 * dt; // Schwerkraft
+        p.life -= p.decay * dt;
+        p.rot += p.rotSpeed * dt;
+        if (p.life <= 0) { particles.splice(i, 1); continue; }
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+
+        if (p.shape === 0) {
+            ctx.beginPath();
+            ctx.arc(0, 0, p.size * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (p.shape === 1) {
+            ctx.fillRect(-p.size * 0.4, -p.size * 0.4, p.size * 0.8, p.size * 0.8);
+        } else {
+            // Stern
+            ctx.beginPath();
+            for (let s = 0; s < 5; s++) {
+                const a = (s / 5) * Math.PI * 2 - Math.PI / 2;
+                const b = a + Math.PI / 5;
+                const r = p.size * 0.5, ri = r * 0.45;
+                s === 0 ? ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r) : ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
+                ctx.lineTo(Math.cos(b)*ri, Math.sin(b)*ri);
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+}
+
+// --- Feuerwerk ---
+const fw = { active: false, timer: 0, nextBurst: 0, duration: 6000 };
+
+function spawnFireworkBurst(x, y) {
+    if (!explosionSettings.enabled) return;
+    const m = strengthMultipliers[explosionSettings.strength];
+    const hue = randInt(0, 360);
+    const colors = [
+        `hsl(${hue},100%,65%)`,
+        `hsl(${(hue+40)%360},100%,70%)`,
+        `hsl(${(hue+80)%360},100%,75%)`,
+        '#FFFFFF',
+        `hsl(${(hue+160)%360},100%,60%)`,
+    ];
+    // Innerer Knall
+    spawnExplosion(x, y, colors, 70, 13);
+    // Äußerer Ring mit Sternen
+    const ringCount = Math.max(1, Math.round(24 * m.particles));
+    for (let i = 0; i < ringCount; i++) {
+        const angle = (i / ringCount) * Math.PI * 2;
+        const speed = randRange(8, 15 * m.power);
+        particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 1,
+            decay: randRange(0.008, 0.016),
+            color: colors[randInt(0, colors.length - 1)],
+            size: randRange(10, 20),
+            shape: 2,
+            rot: rand() * Math.PI,
+            rotSpeed: randRange(-0.2, 0.2),
+        });
+    }
+    triggerShake(8);
+}
+
+// --- Spielschleife ---
+let lastTime = 0;
+let totalTime = 0;
+let loopingWasActive = false;
+
+function loop(timestamp) {
+    const raw = Math.min(timestamp - lastTime, 50);
+    lastTime = timestamp;
+    const dt = raw / 16.667; // normalisiert auf 60 FPS
+    totalTime += raw;
+
+    // Eingabe & Bewegung
+    let dx = 0, dy = 0;
+    if (keys['ArrowLeft']  || keys['a'] || keys['A']) dx -= 1;
+    if (keys['ArrowRight'] || keys['d'] || keys['D']) dx += 1;
+    if (keys['ArrowUp']    || keys['w'] || keys['W']) dy -= 1;
+    if (keys['ArrowDown']  || keys['s'] || keys['S']) dy += 1;
+
+    const moving = dx !== 0 || dy !== 0;
+    if (moving) {
+        // Diagonalbewegung normalisieren
+        const len = Math.hypot(dx, dy);
+        bunny.x += (dx / len) * bunny.speed * dt;
+        bunny.y += (dy / len) * bunny.speed * dt;
+        if (dx !== 0) {
+            bunny.facing = dx > 0 ? 1 : -1;
+            bunny.verticalFacing = 0;
+        } else if (dy !== 0) {
+            bunny.verticalFacing = dy > 0 ? 1 : -1;
+        }
+    }
+
+    // Grenzen
+    bunny.x = Math.max(28, Math.min(W - 28, bunny.x));
+    bunny.y = Math.max(H * 0.28 + 35, Math.min(H - 35, bunny.y));
+
+    // Hüpfen
+    if (moving && !bunny.looping) {
+        bunny.hopPhase += 0.17 * dt;
+        bunny.hopHeight = Math.abs(Math.sin(bunny.hopPhase) * 20);
+    } else if (!bunny.looping) {
+        bunny.hopPhase = 0;
+        bunny.hopHeight = Math.max(0, bunny.hopHeight - 2 * dt);
+    }
+    bunny.isMoving = moving;
+
+    // Looping-Sprung (Leertaste)
+    let loopAngle = 0;
+    if (bunny.looping) {
+        bunny.loopProgress = Math.min(1, bunny.loopProgress + 0.026 * dt);
+        loopAngle = bunny.loopProgress * Math.PI * 2;
+        bunny.hopHeight = Math.sin(bunny.loopProgress * Math.PI) * 78;
+        // Sterne beim höchsten Punkt (ca. 50%)
+        if (!loopingWasActive) { /* kein Effekt beim Absprung */ }
+        loopingWasActive = true;
+        if (bunny.loopProgress >= 1) {
+            bunny.looping = false;
+            bunny.loopProgress = 0;
+            bunny.hopHeight = 0;
+            loopingWasActive = false;
+            // Landungs-Explosion
+            spawnExplosion(bunny.x, bunny.y + 28,
+                ['#FFD700','#FF69B4','#FFFFFF','#C084FC','#60D9FA'], 60, 10);
+            triggerShake(14);
+        }
+    }
+
+    // Blinzeln
+    bunny.blinkTimer += dt;
+    if (bunny.blinkTimer > 200) {
+        bunny.blinking = true;
+        if (bunny.blinkTimer > 205) {
+            bunny.blinking = false;
+            bunny.blinkTimer = 0;
+        }
+    }
+
+    // Eier einsammeln
+    for (const egg of eggs) {
+        if (!egg.collected) {
+            if (Math.hypot(bunny.x - egg.x, bunny.y - egg.y) < 32) {
+                egg.collected = true;
+                bunny.score++;
+                spawnExplosion(egg.x, egg.y,
+                    [egg.col.fill, egg.col.stripe, '#FFFFFF', '#FFD700'], 80, 12);
+                triggerShake(10);
+            }
+        }
+        if (egg.collected && egg.collectAnim < 1) {
+            egg.collectAnim = Math.min(1, egg.collectAnim + 0.05 * dt);
+        }
+    }
+
+    const t = totalTime;
+
+    // --- Shake aktualisieren ---
+    shake.intensity *= Math.pow(shake.decay, dt);
+    if (shake.intensity < 0.3) shake.intensity = 0;
+
+    // --- Render ---
+    ctx.save();
+    if (shake.intensity > 0) {
+        const sx = (rand() - 0.5) * 2 * shake.intensity;
+        const sy = (rand() - 0.5) * 2 * shake.intensity;
+        ctx.translate(sx, sy);
+    }
+    drawSky();
+    drawGrass();
+
+    // Wolken
+    for (const c of clouds) drawCloud(c);
+
+    // Blumen hinter dem Hasen
+    for (const f of flowers) {
+        if (f.y < bunny.y - 15) drawFlower(f, t);
+    }
+
+    // Eier
+    for (const egg of eggs) drawEgg(egg);
+
+    // Partikel (hinter Hasen)
+    updateAndDrawParticles(dt);
+
+    // Hase
+    drawBunny(bunny.x, bunny.y, bunny.facing, bunny.verticalFacing, bunny.hopHeight, bunny.blinking, loopAngle);
+
+    // Blumen vor dem Hasen
+    for (const f of flowers) {
+        if (f.y >= bunny.y - 15) drawFlower(f, t);
+    }
+
+    ctx.restore(); // Shake-Transform beenden
+
+    // HUD (shake-frei)
+    drawHUD(bunny.score, eggs.length);
+
+    if (bunny.score === eggs.length) {
+        // Feuerwerk starten (einmalig)
+        if (!fw.active && fw.timer === 0) {
+            fw.active = true;
+            fw.timer = fw.duration;
+            fw.nextBurst = 0;
+        }
+        // Feuerwerk updaten
+        if (fw.active) {
+            fw.timer -= raw;
+            fw.nextBurst -= raw;
+            if (fw.nextBurst <= 0) {
+                const bx = randRange(W * 0.1, W * 0.9);
+                const by = randRange(H * 0.08, H * 0.55);
+                spawnFireworkBurst(bx, by);
+                // Intervall wird gegen Ende kürzer (Finale!)
+                const progress = 1 - fw.timer / fw.duration;
+                fw.nextBurst = randRange(150, 400) * (1 - progress * 0.6);
+            }
+            if (fw.timer <= 0) fw.active = false;
+        }
+        drawWinScreen();
+    }
+
+    requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
