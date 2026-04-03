@@ -38,7 +38,7 @@
 <body>
     <h1>Osterhase auf der Blumenwiese</h1>
     <canvas id="canvas" width="820" height="520"></canvas>
-    <p>Steuerung: Pfeiltasten oder WASD &nbsp;|&nbsp; Leertaste: Looping-Sprung &nbsp;|&nbsp; Sammle alle Ostereier!</p>
+    <p>Sammle alle Ostereier! &nbsp;|&nbsp; Steuerung: Pfeiltasten oder WASD &nbsp;|&nbsp; Leertaste: Looping-Sprung &nbsp;|&nbsp; 0, 1, 2, 3: Explosionen (de-) aktivieren</p>
     <div id="settings" style="display:flex;align-items:center;gap:16px;margin-top:10px;background:rgba(0,0,0,0.3);padding:8px 18px;border-radius:12px;">
         <label style="color:white;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer;">
             <input type="checkbox" id="explosionToggle" checked style="width:16px;height:16px;cursor:pointer;">
@@ -149,6 +149,11 @@ document.addEventListener('keydown', e => {
     if (e.key === ' ' && !e.repeat && !bunny.looping) {
         bunny.looping = true;
         bunny.loopProgress = 0;
+    }
+    if (e.key === '0') {
+        setExplosionsEnabled(false);
+    } else if (['1', '2', '3'].includes(e.key)) {
+        setStrength(parseInt(e.key, 10));
     }
     if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
 });
@@ -441,8 +446,7 @@ const strengthMultipliers = {
     3: { particles: 1.0, power: 1.4, shake: 1 },
 };
 
-// UI initialisieren
-(function() {
+function updateExplosionControls() {
     const toggle = document.getElementById('explosionToggle');
     toggle.checked = explosionSettings.enabled;
     document.getElementById('strengthButtons').style.opacity = explosionSettings.enabled ? '1' : '0.4';
@@ -450,21 +454,26 @@ const strengthMultipliers = {
     for (let i = 1; i <= 3; i++) {
         document.getElementById('btn' + i).style.border = i === explosionSettings.strength ? '2px solid white' : '2px solid transparent';
     }
-})();
+}
+
+function setExplosionsEnabled(enabled) {
+    explosionSettings.enabled = enabled;
+    localStorage.setItem('exp_enabled', enabled);
+    updateExplosionControls();
+}
+
+// UI initialisieren
+updateExplosionControls();
 
 document.getElementById('explosionToggle').addEventListener('change', function() {
-    explosionSettings.enabled = this.checked;
-    localStorage.setItem('exp_enabled', this.checked);
-    document.getElementById('strengthButtons').style.opacity = this.checked ? '1' : '0.4';
-    document.getElementById('strengthButtons').style.pointerEvents = this.checked ? 'auto' : 'none';
+    setExplosionsEnabled(this.checked);
 });
 
 function setStrength(level) {
+    setExplosionsEnabled(true);
     explosionSettings.strength = level;
     localStorage.setItem('exp_strength', level);
-    for (let i = 1; i <= 3; i++) {
-        document.getElementById('btn' + i).style.border = i === level ? '2px solid white' : '2px solid transparent';
-    }
+    updateExplosionControls();
 }
 
 // --- Partikel ---
