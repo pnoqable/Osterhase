@@ -1,0 +1,81 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXFileReference section */
+		84CDF2F12F7FDD4B007AB24E /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
+		84CDF2F22F7FDD4B007AB24E /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		84CDF2F32F7FDE51007AB24E /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		84CDF2EA2F7FDD0C007AB24E = {
+			isa = PBXGroup;
+			children = (
+				84CDF2F12F7FDD4B007AB24E /* index.html */,
+				84CDF2F22F7FDD4B007AB24E /* LICENSE */,
+				84CDF2F32F7FDE51007AB24E /* AGENTS.md */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXProject section */
+		84CDF2EB2F7FDD0C007AB24E /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 2640;
+			};
+			buildConfigurationList = 84CDF2EE2F7FDD0C007AB24E /* Build configuration list for PBXProject "Osterhase" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 84CDF2EA2F7FDD0C007AB24E;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+			);
+		};
+/* End PBXProject section */
+
+/* Begin XCBuildConfiguration section */
+		84CDF2EF2F7FDD0C007AB24E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEVELOPMENT_TEAM = MW6A6MU64S;
+			};
+			name = Debug;
+		};
+		84CDF2F02F7FDD0C007AB24E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEVELOPMENT_TEAM = MW6A6MU64S;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		84CDF2EE2F7FDD0C007AB24E /* Build configuration list for PBXProject "Osterhase" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				84CDF2EF2F7FDD0C007AB24E /* Debug */,
+				84CDF2F02F7FDD0C007AB24E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 84CDF2EB2F7FDD0C007AB24E /* Project object */;
+}
