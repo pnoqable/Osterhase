@@ -488,7 +488,7 @@ jumpButtonEl.addEventListener('pointerdown', e => {
 });
 
 // --- Zufallsgenerator mit Seed für reproduzierbare Szene ---
-let seed = 42;
+let seed = Math.random(); // 42;
 function rand() {
     seed = (seed * 1664525 + 1013904223) & 0xFFFFFFFF;
     return (seed >>> 0) / 0xFFFFFFFF;
