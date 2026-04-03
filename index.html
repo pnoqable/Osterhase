@@ -2,18 +2,29 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Osterhase auf der Blumenwiese</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Osterhase</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html {
+            height: 100%;
+            overflow: hidden;
+        }
         body {
             background: #5BA3D9;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
+            min-height: 100svh;
             font-family: 'Segoe UI', Arial, sans-serif;
             overflow: hidden;
+            padding:
+                max(12px, env(safe-area-inset-top))
+                12px
+                max(12px, env(safe-area-inset-bottom))
+                12px;
         }
         h1 {
             color: white;
@@ -21,6 +32,11 @@
             font-size: 22px;
             text-shadow: 2px 2px 6px rgba(0,0,0,0.4);
             letter-spacing: 1px;
+        }
+        #gameShell {
+            position: relative;
+            display: inline-block;
+            --overlay-scale: 1;
         }
         canvas {
             border-radius: 16px;
@@ -32,30 +48,444 @@
             margin-top: 10px;
             font-size: 13px;
             text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: min(820px, calc(100vw - 24px));
+            line-height: 1.4;
+        }
+        #settings {
+            display: flex;
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 4;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            background: rgba(0,0,0,0.35);
+            padding: 7px 12px;
+            border-radius: 12px;
+            box-shadow: 0 8px 26px rgba(0,0,0,0.22);
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            transform: scale(var(--overlay-scale));
+            transform-origin: top right;
+        }
+        #hud {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 4;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0,0,0,0.35);
+            padding: 7px 12px;
+            border-radius: 12px;
+            box-shadow: 0 8px 26px rgba(0,0,0,0.22);
+            color: white;
+            transform: scale(var(--overlay-scale));
+            transform-origin: top left;
+        }
+        #hudScore {
+            font-size: 17px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        #hudEggs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .hudEgg {
+            width: 14px;
+            height: 20px;
+            border-radius: 50% 50% 48% 48%;
+            background: rgba(255,255,255,0.2);
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.10);
+            transition: background-color 120ms ease, opacity 120ms ease;
+        }
+        #mobileControls {
+            display: none;
+        }
+        body.mobile-ui #mobileControls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            margin-top: 10px;
+            width: min(820px, calc(100vw - 24px));
+        }
+        .mobileControlCard {
+            background: rgba(0,0,0,0.28);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+            border: 2px solid rgba(255,255,255,0.18);
+        }
+        #joystickZone {
+            position: relative;
+            width: 108px;
+            height: 108px;
+            border-radius: 999px;
+            touch-action: none;
+            flex: 0 0 auto;
+        }
+        #joystickKnob {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 44px;
+            height: 44px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.78);
+            border: 2px solid rgba(255,255,255,0.88);
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+            pointer-events: none;
+        }
+        #jumpButton {
+            min-width: 108px;
+            width: 108px;
+            height: 108px;
+            padding: 0 18px;
+            border-radius: 18px;
+            color: white;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            touch-action: manipulation;
+            flex: 0 0 auto;
+        }
+        body.compact-ui h1,
+        body.compact-ui p {
+            display: none;
+        }
+        body.compact-ui #hud {
+            top: 8px;
+            left: 8px;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 10px;
+        }
+        body.compact-ui #hudScore {
+            font-size: 14px;
+        }
+        body.compact-ui .hudEgg {
+            width: 12px;
+            height: 17px;
+        }
+        body.compact-ui #settings {
+            top: 8px;
+            right: 8px;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 10px;
+        }
+        body.compact-ui #settings button {
+            min-height: 22px;
+            padding: 2px 7px !important;
+            font-size: 11px !important;
+        }
+        body.mobile-ui.portrait-ui #hud {
+            top: 8px;
+            left: 8px;
+            gap: 7px;
+            padding: 5px 9px;
+            border-radius: 10px;
+        }
+        body.mobile-ui.portrait-ui #hudScore {
+            font-size: 13px;
+        }
+        body.mobile-ui.portrait-ui #hudEggs {
+            gap: 6px;
+        }
+        body.mobile-ui.portrait-ui .hudEgg {
+            width: 11px;
+            height: 16px;
+        }
+        body.mobile-ui.portrait-ui #settings {
+            top: 8px;
+            right: 8px;
+            gap: 6px;
+            padding: 5px 9px;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+        body.mobile-ui.portrait-ui #settingsLabel {
+            font-size: 12px;
+        }
+        body.mobile-ui.portrait-ui #strengthButtons {
+            gap: 4px !important;
+        }
+        body.mobile-ui.portrait-ui #settings button {
+            min-height: 20px;
+            padding: 2px 6px !important;
+            font-size: 10px !important;
+        }
+        #strengthButtons {
+            display: flex;
+            flex-direction: row;
+            gap: 6px !important;
+        }
+        #settings button {
+            width: auto;
+            min-height: 24px;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1;
+            padding: 2px 8px;
+            border-radius: 999px;
+            border: 2px solid rgba(255,255,255,0.24);
+            color: white;
+            cursor: pointer;
+            font-family: inherit;
+            transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease, opacity 120ms ease;
+        }
+        #settingsLabel {
+            color: rgba(255,255,255,0.88);
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        #btn0 {
+            background: rgba(255,255,255,0.10);
+            border-color: rgba(255,255,255,0.24);
+        }
+        #btn1 {
+            background: #4a9d30;
+        }
+        #btn2 {
+            background: #c07800;
+        }
+        #btn3 {
+            background: #9b2020;
+        }
+        body.landscape-ui {
+            padding-left: max(12px, env(safe-area-inset-left));
+            padding-right: max(12px, env(safe-area-inset-right));
+        }
+        body.mobile-ui.landscape-ui #mobileControls {
+            position: fixed;
+            top: 50%;
+            left: max(8px, env(safe-area-inset-left));
+            top: calc(50% - 59px);
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 12px;
+            width: 118px;
+            margin-top: 0;
+            z-index: 5;
+        }
+        body.mobile-ui.landscape-ui #joystickZone {
+            width: 118px;
+            height: 118px;
+        }
+        body.mobile-ui.landscape-ui #jumpButton {
+            position: fixed;
+            top: calc(50% - 59px);
+            right: max(8px, env(safe-area-inset-right));
+            width: 118px;
+            min-width: 118px;
+            height: 118px;
+            z-index: 5;
+        }
+        body.mobile-ui.compact-ui #mobileControls {
+            margin-top: 6px;
+            gap: 12px;
+        }
+        body.mobile-ui.compact-ui #joystickZone {
+            width: 88px;
+            height: 88px;
+        }
+        body.mobile-ui.compact-ui #joystickKnob {
+            width: 36px;
+            height: 36px;
+        }
+        body.mobile-ui.compact-ui #jumpButton {
+            min-width: 88px;
+            width: 88px;
+            height: 88px;
+            font-size: 12px;
+        }
+        @media (max-height: 500px) {
+            body {
+                padding-top: max(8px, env(safe-area-inset-top));
+                padding-bottom: max(8px, env(safe-area-inset-bottom));
+            }
+            h1 {
+                margin-bottom: 8px;
+                font-size: 18px;
+            }
+            p {
+                margin-top: 8px;
+                font-size: 12px;
+            }
+            #settings { padding: 6px 8px; }
         }
     </style>
 </head>
 <body>
-    <h1>Osterhase auf der Blumenwiese</h1>
-    <canvas id="canvas" width="820" height="520"></canvas>
-    <p>Sammle alle Ostereier! &nbsp;|&nbsp; Steuerung: Pfeiltasten oder WASD &nbsp;|&nbsp; Leertaste: Looping-Sprung &nbsp;|&nbsp; 0, 1, 2, 3: Explosionen (de-) aktivieren</p>
-    <div id="settings" style="display:flex;align-items:center;gap:16px;margin-top:10px;background:rgba(0,0,0,0.3);padding:8px 18px;border-radius:12px;">
-        <label style="color:white;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer;">
-            <input type="checkbox" id="explosionToggle" checked style="width:16px;height:16px;cursor:pointer;">
-            Explosionen
-        </label>
-        <span style="color:rgba(255,255,255,0.5);font-size:13px;">Stärke:</span>
-        <div id="strengthButtons" style="display:flex;gap:6px;">
-            <button onclick="setStrength(1)" id="btn1" style="padding:4px 12px;border-radius:8px;border:2px solid white;background:#4a9d30;color:white;font-size:12px;cursor:pointer;font-family:inherit;">Schwach</button>
-            <button onclick="setStrength(2)" id="btn2" style="padding:4px 12px;border-radius:8px;border:2px solid transparent;background:#c07800;color:white;font-size:12px;cursor:pointer;font-family:inherit;">Mittel</button>
-            <button onclick="setStrength(3)" id="btn3" style="padding:4px 12px;border-radius:8px;border:2px solid transparent;background:#9b2020;color:white;font-size:12px;cursor:pointer;font-family:inherit;">Stark</button>
+    <h1>Sammle alle Ostereier!</h1>
+    <div id="gameShell">
+        <canvas id="canvas" width="820" height="520"></canvas>
+        <div id="hud">
+            <span id="hudScore">Eier: 0 / 0</span>
+            <div id="hudEggs"></div>
         </div>
+        <div id="settings">
+        <span id="settingsLabel">Explosionen:</span>
+        <div id="strengthButtons" style="display:flex;gap:6px;">
+                <button onclick="setExplosionMode(0)" id="btn0">Aus</button>
+                <button onclick="setStrength(1)" id="btn1">Schwach</button>
+                <button onclick="setStrength(2)" id="btn2">Mittel</button>
+                <button onclick="setStrength(3)" id="btn3">Stark</button>
+            </div>
+        </div>
+    </div>
+    <p>Steuerung: Pfeiltasten &nbsp;|&nbsp; Sprung: Leertaste &nbsp;|&nbsp; Explosionen: Ziffertasten</p>
+    <div id="mobileControls">
+        <div id="joystickZone" class="mobileControlCard" aria-label="Joystick">
+            <div id="joystickKnob"></div>
+        </div>
+        <button id="jumpButton" class="mobileControlCard" type="button">Sprung</button>
     </div>
 
 <script>
+const gameShellEl = document.getElementById('gameShell');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const W = canvas.width, H = canvas.height;
+const titleEl = document.querySelector('h1');
+const helpEl = document.querySelector('p');
+const desktopHelpText = 'Steuerung: Pfeiltasten &nbsp;|&nbsp; Sprung: Leertaste &nbsp;|&nbsp; Explosionen: Ziffertasten';
+const mobileHelpText = 'Funktioniert auch im Querformat';
+const settingsEl = document.getElementById('settings');
+const hudScoreEl = document.getElementById('hudScore');
+const hudEggsEl = document.getElementById('hudEggs');
+const mobileControlsEl = document.getElementById('mobileControls');
+const joystickZoneEl = document.getElementById('joystickZone');
+const joystickKnobEl = document.getElementById('joystickKnob');
+const jumpButtonEl = document.getElementById('jumpButton');
+const joystickInput = {
+    active: false,
+    dx: 0,
+    dy: 0,
+    pointerId: null,
+};
+
+function resetJoystick() {
+    joystickInput.active = false;
+    joystickInput.dx = 0;
+    joystickInput.dy = 0;
+    joystickInput.pointerId = null;
+    joystickKnobEl.style.transform = 'translate(-50%, -50%)';
+}
+
+function resizeLayout() {
+    const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const mobileUi = navigator.maxTouchPoints > 0;
+    const compactUi = viewportHeight < 620 || (viewportWidth > viewportHeight && viewportHeight < 700);
+    const landscapeUi = compactUi && viewportWidth > viewportHeight;
+    const portraitUi = mobileUi && viewportHeight >= viewportWidth;
+    const jumpButtonFloating = mobileUi && landscapeUi;
+    document.body.classList.toggle('compact-ui', compactUi);
+    document.body.classList.toggle('mobile-ui', mobileUi);
+    document.body.classList.toggle('landscape-ui', landscapeUi);
+    document.body.classList.toggle('portrait-ui', portraitUi);
+    helpEl.innerHTML = mobileUi ? mobileHelpText : desktopHelpText;
+    const bodyStyle = getComputedStyle(document.body);
+    const titleStyle = getComputedStyle(titleEl);
+    const helpStyle = getComputedStyle(helpEl);
+    const mobileControlsStyle = getComputedStyle(mobileControlsEl);
+
+    const horizontalPadding = parseFloat(bodyStyle.paddingLeft) + parseFloat(bodyStyle.paddingRight);
+    const verticalPadding = parseFloat(bodyStyle.paddingTop) + parseFloat(bodyStyle.paddingBottom);
+    const chromeHeight =
+        titleEl.getBoundingClientRect().height +
+        helpEl.getBoundingClientRect().height +
+        parseFloat(titleStyle.marginBottom) +
+        (landscapeUi ? 0 : mobileControlsEl.getBoundingClientRect().height) +
+        parseFloat(helpStyle.marginTop) +
+        (landscapeUi ? 0 : parseFloat(mobileControlsStyle.marginTop)) +
+        (jumpButtonFloating ? 0 : 10);
+
+    const leftPanelWidth = landscapeUi ? mobileControlsEl.getBoundingClientRect().width + 12 : 0;
+    const rightPanelWidth = jumpButtonFloating ? jumpButtonEl.getBoundingClientRect().width + 12 : 0;
+    const availableWidth = Math.max(220, viewportWidth - horizontalPadding - leftPanelWidth - rightPanelWidth);
+    const availableHeight = Math.max(160, viewportHeight - verticalPadding - chromeHeight);
+    const scale = Math.min(availableWidth / W, availableHeight / H, 1);
+    const overlayScale = Math.max(0.68, Math.min(scale, 1));
+
+    canvas.style.width = `${Math.floor(W * scale)}px`;
+    canvas.style.height = `${Math.floor(H * scale)}px`;
+    gameShellEl.style.width = canvas.style.width;
+    gameShellEl.style.setProperty('--overlay-scale', overlayScale.toFixed(3));
+}
+
+window.addEventListener('resize', resizeLayout);
+window.visualViewport?.addEventListener('resize', resizeLayout);
+window.visualViewport?.addEventListener('scroll', resizeLayout);
+requestAnimationFrame(resizeLayout);
+
+function startLoopingJump() {
+    if (bunny.looping) return;
+    triggerFlowerBurst(bunny.x, bunny.y);
+    bunny.looping = true;
+    bunny.loopProgress = 0;
+}
+
+function updateJoystickFromPointer(clientX, clientY) {
+    const rect = joystickZoneEl.getBoundingClientRect();
+    const radius = rect.width * 0.5;
+    const knobRadius = rect.width * 0.2;
+    const centerX = rect.left + radius;
+    const centerY = rect.top + radius;
+    let dx = clientX - centerX;
+    let dy = clientY - centerY;
+    const distance = Math.hypot(dx, dy);
+    const maxDistance = radius - knobRadius - 6;
+
+    if (distance > maxDistance && distance > 0) {
+        const factor = maxDistance / distance;
+        dx *= factor;
+        dy *= factor;
+    }
+
+    joystickInput.dx = dx / maxDistance;
+    joystickInput.dy = dy / maxDistance;
+    joystickKnobEl.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+}
+
+joystickZoneEl.addEventListener('pointerdown', e => {
+    joystickInput.active = true;
+    joystickInput.pointerId = e.pointerId;
+    joystickZoneEl.setPointerCapture(e.pointerId);
+    updateJoystickFromPointer(e.clientX, e.clientY);
+    e.preventDefault();
+});
+
+joystickZoneEl.addEventListener('pointermove', e => {
+    if (!joystickInput.active || joystickInput.pointerId !== e.pointerId) return;
+    updateJoystickFromPointer(e.clientX, e.clientY);
+    e.preventDefault();
+});
+
+function endJoystick(pointerId) {
+    if (joystickInput.pointerId !== null && pointerId !== null && joystickInput.pointerId !== pointerId) return;
+    resetJoystick();
+}
+
+joystickZoneEl.addEventListener('pointerup', e => endJoystick(e.pointerId));
+joystickZoneEl.addEventListener('pointercancel', e => endJoystick(e.pointerId));
+window.addEventListener('pointerup', e => endJoystick(e.pointerId));
+
+jumpButtonEl.addEventListener('click', startLoopingJump);
+jumpButtonEl.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    startLoopingJump();
+});
 
 // --- Zufallsgenerator mit Seed für reproduzierbare Szene ---
 let seed = 42;
@@ -133,6 +563,23 @@ const sceneItems = [
     ...eggs.map(egg => ({ y: egg.y, draw: () => drawEgg(egg) })),
 ].sort((a, b) => a.y - b.y);
 
+function updateHUD() {
+    hudScoreEl.textContent = `Eier: ${bunny.score} / ${eggs.length}`;
+    if (hudEggsEl.children.length !== eggs.length) {
+        hudEggsEl.innerHTML = '';
+        for (let i = 0; i < eggs.length; i++) {
+            const eggEl = document.createElement('span');
+            eggEl.className = 'hudEgg';
+            hudEggsEl.appendChild(eggEl);
+        }
+    }
+    for (let i = 0; i < eggs.length; i++) {
+        const eggEl = hudEggsEl.children[i];
+        eggEl.style.backgroundColor = eggs[i].collected ? eggColors[i].fill : 'rgba(255,255,255,0.2)';
+        eggEl.style.opacity = eggs[i].collected ? '1' : '0.9';
+    }
+}
+
 // --- Hase ---
 const bunny = {
     x: W / 2, y: H / 2,
@@ -141,6 +588,7 @@ const bunny = {
     hopHeight: 0,
     facing: 1,
     verticalFacing: 1,
+    tailVisible: false,
     score: 0,
     isMoving: false,
     blinkTimer: 0,
@@ -167,12 +615,10 @@ const keys = {};
 document.addEventListener('keydown', e => {
     keys[e.key] = true;
     if (e.key === ' ' && !e.repeat && !bunny.looping) {
-        triggerFlowerBurst(bunny.x, bunny.y);
-        bunny.looping = true;
-        bunny.loopProgress = 0;
+        startLoopingJump();
     }
     if (e.key === '0') {
-        setExplosionsEnabled(false);
+        setExplosionMode(0);
     } else if (['1', '2', '3'].includes(e.key)) {
         setStrength(parseInt(e.key, 10));
     }
@@ -352,9 +798,9 @@ function drawBunnyBackView(blink) {
     }
 }
 
-function drawBunnySideView(verticalFacing, blink) {
-    if (verticalFacing !== 1) {
-        // Schwanz vorne sichtbar, wenn das Haeschen nicht gerade auf den Spieler zu zeigt.
+function drawBunnySideView(tailVisible, blink) {
+    if (tailVisible) {
+        // Schwanz nur in der echten Seitenansicht sichtbar.
         ctx.fillStyle = '#EFEFEF';
         ctx.beginPath();
         ctx.arc(-19, 8, 8, 0, Math.PI * 2);
@@ -434,7 +880,7 @@ function drawBunnySideView(verticalFacing, blink) {
     ctx.beginPath(); ctx.ellipse( 10, 29, 9, 5.5,  0.3, 0, Math.PI * 2); ctx.fill();
 }
 
-function drawBunny(x, y, facing, verticalFacing, hopHeight, blink, loopAngle) {
+function drawBunny(x, y, facing, verticalFacing, tailVisible, hopHeight, blink, loopAngle) {
     ctx.save();
     ctx.translate(x, y - hopHeight);
     ctx.scale(facing, 1);
@@ -460,30 +906,10 @@ function drawBunny(x, y, facing, verticalFacing, hopHeight, blink, loopAngle) {
     if (verticalFacing === -1) {
         drawBunnyBackView(blink);
     } else {
-        drawBunnySideView(verticalFacing, blink);
+        drawBunnySideView(tailVisible, blink);
     }
 
     ctx.restore();
-}
-
-function drawHUD(score, total) {
-    // Hintergrund-Pill
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath();
-    ctx.roundRect(12, 12, 175, 42, 12);
-    ctx.fill();
-
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 17px Segoe UI, Arial';
-    ctx.fillText(`Eier: ${score} / ${total}`, 48, 39);
-
-    // Kleine Egg-Icons
-    for (let i = 0; i < total; i++) {
-        ctx.fillStyle = eggs[i].collected ? eggColors[i].fill : 'rgba(255,255,255,0.2)';
-        ctx.beginPath();
-        ctx.ellipse(198 + i * 22, 33, 7, 10, 0, 0, Math.PI * 2);
-        ctx.fill();
-    }
 }
 
 function drawWinScreen() {
@@ -500,14 +926,24 @@ function drawWinScreen() {
     ctx.fillText('Alle Ostereier gefunden!', W / 2, H / 2 + 20);
     ctx.font = '18px Segoe UI, Arial';
     ctx.fillStyle = 'rgba(255,255,255,0.75)';
-    ctx.fillText('Druecke F5 fuer ein neues Spiel', W / 2, H / 2 + 58);
+    ctx.fillText('Seite aktualisieren für ein neues Spiel', W / 2, H / 2 + 58);
     ctx.restore();
 }
 
 // --- Explosions-Einstellungen ---
+function loadExplosionMode() {
+    const storedMode = parseInt(localStorage.getItem('exp_mode') || '', 10);
+    if ([0, 1, 2, 3].includes(storedMode)) return storedMode;
+
+    const legacyEnabled = localStorage.getItem('exp_enabled');
+    const legacyStrength = parseInt(localStorage.getItem('exp_strength') || '1', 10);
+    if (legacyEnabled === null) return 0;
+    if (legacyEnabled !== 'true') return 0;
+    return [1, 2, 3].includes(legacyStrength) ? legacyStrength : 1;
+}
+
 const explosionSettings = {
-    enabled: localStorage.getItem('exp_enabled') === 'true',
-    strength: parseInt(localStorage.getItem('exp_strength') || '1', 10),
+    mode: loadExplosionMode(),
 };
 
 const strengthMultipliers = {
@@ -517,33 +953,22 @@ const strengthMultipliers = {
 };
 
 function updateExplosionControls() {
-    const toggle = document.getElementById('explosionToggle');
-    toggle.checked = explosionSettings.enabled;
-    document.getElementById('strengthButtons').style.opacity = explosionSettings.enabled ? '1' : '0.4';
-    document.getElementById('strengthButtons').style.pointerEvents = explosionSettings.enabled ? 'auto' : 'none';
-    for (let i = 1; i <= 3; i++) {
-        document.getElementById('btn' + i).style.border = i === explosionSettings.strength ? '2px solid white' : '2px solid transparent';
+    for (let i = 0; i <= 3; i++) {
+        document.getElementById('btn' + i).style.border = i === explosionSettings.mode ? '2px solid white' : '2px solid transparent';
     }
 }
 
-function setExplosionsEnabled(enabled) {
-    explosionSettings.enabled = enabled;
-    localStorage.setItem('exp_enabled', enabled);
+function setExplosionMode(mode) {
+    explosionSettings.mode = mode;
+    localStorage.setItem('exp_mode', String(mode));
     updateExplosionControls();
 }
 
 // UI initialisieren
 updateExplosionControls();
 
-document.getElementById('explosionToggle').addEventListener('change', function() {
-    setExplosionsEnabled(this.checked);
-});
-
 function setStrength(level) {
-    setExplosionsEnabled(true);
-    explosionSettings.strength = level;
-    localStorage.setItem('exp_strength', level);
-    updateExplosionControls();
+    setExplosionMode(level);
 }
 
 // --- Partikel ---
@@ -553,14 +978,14 @@ const particles = [];
 const shake = { intensity: 0, decay: 0.85 };
 
 function triggerShake(strength) {
-    if (!explosionSettings.enabled) return;
-    const m = strengthMultipliers[explosionSettings.strength];
+    if (explosionSettings.mode === 0) return;
+    const m = strengthMultipliers[explosionSettings.mode];
     shake.intensity = Math.max(shake.intensity, strength * m.shake);
 }
 
 function spawnExplosion(x, y, colors, count, power) {
-    if (!explosionSettings.enabled) return;
-    const m = strengthMultipliers[explosionSettings.strength];
+    if (explosionSettings.mode === 0) return;
+    const m = strengthMultipliers[explosionSettings.mode];
     count = Math.max(1, Math.round(count * m.particles));
     power = power * m.power;
     const flowerBurstProfiles = {
@@ -568,7 +993,7 @@ function spawnExplosion(x, y, colors, count, power) {
         2: { radius: 240, speedStrength: 12, amplitudeStrength: 0.85, decay: 0.012 },
         3: { radius: 320, speedStrength: 22, amplitudeStrength: 1.5, decay: 0.009 },
     };
-    triggerFlowerBurst(x, y, flowerBurstProfiles[explosionSettings.strength]);
+    triggerFlowerBurst(x, y, flowerBurstProfiles[explosionSettings.mode]);
     for (let i = 0; i < count; i++) {
         const angle = rand() * Math.PI * 2;
         const speed = randRange(2.5, power);
@@ -588,8 +1013,8 @@ function spawnExplosion(x, y, colors, count, power) {
 }
 
 function spawnLoopingStars(x, y) {
-    if (!explosionSettings.enabled) return;
-    const m = strengthMultipliers[explosionSettings.strength];
+    if (explosionSettings.mode === 0) return;
+    const m = strengthMultipliers[explosionSettings.mode];
     const colors = ['#FFD700','#FF69B4','#00CFFF','#FFFFFF','#FF8C00','#C084FC'];
     const count = Math.max(1, Math.round(36 * m.particles));
     for (let i = 0; i < count; i++) {
@@ -653,8 +1078,8 @@ function updateAndDrawParticles(dt) {
 const fw = { active: false, timer: 0, nextBurst: 0, duration: 6000 };
 
 function spawnFireworkBurst(x, y) {
-    if (!explosionSettings.enabled) return;
-    const m = strengthMultipliers[explosionSettings.strength];
+    if (explosionSettings.mode === 0) return;
+    const m = strengthMultipliers[explosionSettings.mode];
     const hue = randInt(0, 360);
     const colors = [
         `hsl(${hue},100%,65%)`,
@@ -699,10 +1124,17 @@ function loop(timestamp) {
 
     // Eingabe & Bewegung
     let dx = 0, dy = 0;
-    if (keys['ArrowLeft']  || keys['a'] || keys['A']) dx -= 1;
-    if (keys['ArrowRight'] || keys['d'] || keys['D']) dx += 1;
-    if (keys['ArrowUp']    || keys['w'] || keys['W']) dy -= 1;
-    if (keys['ArrowDown']  || keys['s'] || keys['S']) dy += 1;
+    if (keys['ArrowLeft']) dx -= 1;
+    if (keys['ArrowRight']) dx += 1;
+    if (keys['ArrowUp']) dy -= 1;
+    if (keys['ArrowDown']) dy += 1;
+    if (joystickInput.active) {
+        const deadzone = 0.18;
+        if (Math.hypot(joystickInput.dx, joystickInput.dy) > deadzone) {
+            dx = joystickInput.dx;
+            dy = joystickInput.dy;
+        }
+    }
 
     const moving = dx !== 0 || dy !== 0;
     if (moving) {
@@ -710,14 +1142,19 @@ function loop(timestamp) {
         const len = Math.hypot(dx, dy);
         bunny.x += (dx / len) * bunny.speed * dt;
         bunny.y += (dy / len) * bunny.speed * dt;
-        if (dy < 0) {
+        bunny.tailVisible = Math.abs(dx) >= Math.abs(dy);
+        const upwardDominant = dy < 0 && Math.abs(dy) >= Math.abs(dx);
+        const downwardDominant = dy > 0 && Math.abs(dy) >= Math.abs(dx);
+        if (upwardDominant) {
             if (dx !== 0) bunny.facing = dx > 0 ? 1 : -1;
             bunny.verticalFacing = -1;
         } else if (dx !== 0) {
             bunny.facing = dx > 0 ? 1 : -1;
             bunny.verticalFacing = 0;
-        } else if (dy !== 0) {
-            bunny.verticalFacing = dy > 0 ? 1 : -1;
+        } else if (downwardDominant) {
+            bunny.verticalFacing = 1;
+        } else if (dy < 0) {
+            bunny.verticalFacing = -1;
         }
     }
 
@@ -802,6 +1239,7 @@ function loop(timestamp) {
             if (Math.hypot(bunny.x - egg.x, bunny.y - egg.y) < 32) {
                 egg.collected = true;
                 bunny.score++;
+                updateHUD();
                 spawnExplosion(egg.x, egg.y,
                     [egg.col.fill, egg.col.stripe, '#FFFFFF', '#FFD700'], 80, 12);
                 triggerShake(10);
@@ -842,16 +1280,13 @@ function loop(timestamp) {
     updateAndDrawParticles(dt);
 
     // Hase
-    drawBunny(bunny.x, bunny.y, bunny.facing, bunny.verticalFacing, bunny.hopHeight, bunny.blinking, loopAngle);
+    drawBunny(bunny.x, bunny.y, bunny.facing, bunny.verticalFacing, bunny.tailVisible, bunny.hopHeight, bunny.blinking, loopAngle);
 
     for (; splitIndex < sceneItems.length; splitIndex++) {
         sceneItems[splitIndex].draw();
     }
 
     ctx.restore(); // Shake-Transform beenden
-
-    // HUD (shake-frei)
-    drawHUD(bunny.score, eggs.length);
 
     if (bunny.score === eggs.length) {
         // Feuerwerk starten (einmalig)
@@ -880,6 +1315,7 @@ function loop(timestamp) {
     requestAnimationFrame(loop);
 }
 
+updateHUD();
 requestAnimationFrame(loop);
 </script>
 </body>
