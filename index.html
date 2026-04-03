@@ -1239,6 +1239,9 @@ function loop(timestamp) {
             if (Math.hypot(bunny.x - egg.x, bunny.y - egg.y) < 32) {
                 egg.collected = true;
                 bunny.score++;
+                if (bunny.score == 5) {
+                    setExplosionMode(Math.min(3, explosionSettings.mode+1));
+                }
                 updateHUD();
                 spawnExplosion(egg.x, egg.y,
                     [egg.col.fill, egg.col.stripe, '#FFFFFF', '#FFD700'], 80, 12);
