@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="egg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7fd36a"/>
+      <stop offset="100%" stop-color="#4da84a"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#d7efc9"/>
+  <path d="M32 8c-11 0-20 12-20 26 0 12 8 22 20 22s20-10 20-22C52 20 43 8 32 8Z" fill="url(#egg)"/>
+  <ellipse cx="24" cy="18" rx="6" ry="13" fill="#fffdf8" stroke="#7aa66a" stroke-width="1.2" transform="rotate(-18 24 18)"/>
+  <ellipse cx="40" cy="18" rx="6" ry="13" fill="#fffdf8" stroke="#7aa66a" stroke-width="1.2" transform="rotate(18 40 18)"/>
+  <ellipse cx="24" cy="19" rx="2.4" ry="8" fill="#f3b7c8" transform="rotate(-18 24 19)"/>
+  <ellipse cx="40" cy="19" rx="2.4" ry="8" fill="#f3b7c8" transform="rotate(18 40 19)"/>
+  <ellipse cx="32" cy="34" rx="15" ry="13" fill="#fffdf8"/>
+  <ellipse cx="27" cy="33" rx="1.6" ry="2.1" fill="#6c4b35"/>
+  <ellipse cx="37" cy="33" rx="1.6" ry="2.1" fill="#6c4b35"/>
+  <path d="M32 35.5c-2.4 0-4.3 1.3-5 3.1 1.6.5 3.3.8 5 .8s3.4-.3 5-.8c-.7-1.8-2.6-3.1-5-3.1Z" fill="#f09aae"/>
+  <circle cx="23" cy="39" r="2.7" fill="#f7c7cf"/>
+  <circle cx="41" cy="39" r="2.7" fill="#f7c7cf"/>
+</svg>
