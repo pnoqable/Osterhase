@@ -88,6 +88,30 @@
             transform: scale(var(--overlay-scale));
             transform-origin: top left;
         }
+        #restartButton {
+            position: absolute;
+            left: 50%;
+            bottom: 20%;
+            z-index: 6;
+            transform: translateX(-50%) scale(var(--overlay-scale));
+            transform-origin: bottom center;
+            min-height: 36px;
+            padding: 7px 18px;
+            border-radius: 999px;
+            border: 2px solid rgba(255,255,255,0.34);
+            background: rgba(255,255,255,0.18);
+            color: white;
+            font: 600 15px 'Segoe UI', Arial, sans-serif;
+            box-shadow: 0 10px 26px rgba(0,0,0,0.22);
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 180ms ease;
+        }
+        #restartButton.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
         #hudScore {
             font-size: 17px;
             font-weight: 700;
@@ -342,6 +366,7 @@
                 <button onclick="setStrength(3)" id="btn3">Stark</button>
             </div>
         </div>
+        <button id="restartButton" type="button">Neue Runde</button>
     </div>
     <p>Steuerung: Pfeiltasten &nbsp;|&nbsp; Sprung: Leertaste &nbsp;|&nbsp; Explosionen: Ziffertasten</p>
     <div id="mobileControls">
@@ -363,6 +388,7 @@ const mobileHelpText = 'Funktioniert auch im Querformat';
 const settingsEl = document.getElementById('settings');
 const hudScoreEl = document.getElementById('hudScore');
 const hudEggsEl = document.getElementById('hudEggs');
+const restartButtonEl = document.getElementById('restartButton');
 const mobileControlsEl = document.getElementById('mobileControls');
 const joystickZoneEl = document.getElementById('joystickZone');
 const joystickKnobEl = document.getElementById('joystickKnob');
@@ -489,6 +515,7 @@ jumpButtonEl.addEventListener('pointerdown', e => {
     e.preventDefault();
     startLoopingJump();
 });
+restartButtonEl.addEventListener('click', () => window.location.reload());
 
 // --- Zufallsgenerator mit Seed für reproduzierbare Szene ---
 let seed = Math.random(); // 42;
@@ -931,7 +958,7 @@ function drawWinScreen(alpha) {
     ctx.fillText('Frohe Ostern!', W / 2, H / 2 - 4);
     ctx.font = '18px Segoe UI, Arial';
     ctx.fillStyle = 'rgba(255,255,255,0.75)';
-    ctx.fillText('Seite aktualisieren für ein neues Spiel', W / 2, H / 2 + 34);
+    ctx.fillText('von Merle und Lutz', W / 2, H / 2 + 34);
     ctx.restore();
 }
 
@@ -1277,6 +1304,7 @@ function loop(timestamp) {
     bunny.winScreenAlpha += (winScreenTarget - bunny.winScreenAlpha) * 0.08 * dt;
     if (bunny.winScreenAlpha < 0.01) bunny.winScreenAlpha = 0;
     if (bunny.winScreenAlpha > 0.99) bunny.winScreenAlpha = 1;
+    restartButtonEl.classList.toggle('visible', bunny.winScreenAlpha > 0.65);
 
     // Eier einsammeln
     for (const egg of eggs) {
